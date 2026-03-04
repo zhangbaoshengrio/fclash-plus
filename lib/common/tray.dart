@@ -127,9 +127,14 @@ class Tray {
             ),
           );
         }
+        final selectedProxy = appController.getSelectedProxyName(group.name);
+        final groupLabel =
+            (selectedProxy != null && selectedProxy.isNotEmpty)
+                ? '${group.name}  ›  $selectedProxy'
+                : group.name;
         menuItems.add(
           MenuItem.submenu(
-            label: group.name,
+            label: groupLabel,
             submenu: Menu(items: subMenuItems),
           ),
         );
