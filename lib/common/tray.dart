@@ -130,7 +130,7 @@ class Tray {
         final selectedProxy = appController.getSelectedProxyName(group.name);
         final groupLabel =
             (selectedProxy != null && selectedProxy.isNotEmpty)
-                ? '${group.name}  ›  $selectedProxy'
+                ? '${group.name}\t$selectedProxy'
                 : group.name;
         menuItems.add(
           MenuItem.submenu(
