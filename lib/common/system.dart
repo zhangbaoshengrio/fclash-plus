@@ -42,7 +42,7 @@ class System {
   }
 
   Future<bool> checkIsAdmin() async {
-    final corePath = appPath.corePath.replaceAll(' ', '\\\\ ');
+    final corePath = appPath.corePath;
     if (system.isWindows) {
       final result = await windows?.checkService();
       return result == WindowsHelperServiceStatus.running;
@@ -68,7 +68,10 @@ class System {
     if (system.isAndroid) {
       return AuthorizeCode.error;
     }
-    final corePath = appPath.corePath.replaceAll(' ', '\\\\ ');
+    // For osascript's shell string we have to backslash-escape spaces in the
+    // path. For Process.run argument vectors the path is passed verbatim.
+    final rawCorePath = appPath.corePath;
+    final shellEscapedCorePath = rawCorePath.replaceAll(' ', '\\\\ ');
     final isAdmin = await checkIsAdmin();
     if (isAdmin) {
       return AuthorizeCode.none;
@@ -83,7 +86,8 @@ class System {
     }
 
     if (system.isMacOS) {
-      final shell = 'chown root:admin $corePath; chmod +sx $corePath';
+      final shell =
+          'chown root:admin $shellEscapedCorePath; chmod +sx $shellEscapedCorePath';
       final arguments = [
         '-e',
         'do shell script "$shell" with administrator privileges',
@@ -104,7 +108,7 @@ class System {
       );
       final arguments = [
         '-c',
-        'echo "$password" | sudo -S chown root:root "$corePath" && echo "$password" | sudo -S chmod +sx "$corePath"',
+        'echo "$password" | sudo -S chown root:root "$rawCorePath" && echo "$password" | sudo -S chmod +sx "$rawCorePath"',
       ];
       final result = await Process.run(shell, arguments);
       if (result.exitCode != 0) {
