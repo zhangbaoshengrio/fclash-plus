@@ -1,127 +1,79 @@
-<div>
+# FClash Plus
 
-[**English**](README.md)
+> [English / 英文说明](./README.md)
 
-</div>
+基于 [FlClash](https://github.com/chen08209/FlClash) 的 **macOS 专属**修改版本，主要改进系统托盘菜单的使用体验。
 
-## FlClash
+---
 
-[![Downloads](https://img.shields.io/github/downloads/chen08209/FlClash/total?style=flat-square&logo=github)](https://github.com/chen08209/FlClash/releases/)[![Last Version](https://img.shields.io/github/release/chen08209/FlClash/all.svg?style=flat-square)](https://github.com/chen08209/FlClash/releases/)[![License](https://img.shields.io/github/license/chen08209/FlClash?style=flat-square)](LICENSE)
+## 致谢与基线
 
-[![Channel](https://img.shields.io/badge/Telegram-Channel-blue?style=flat-square&logo=telegram)](https://t.me/FlClash)
+本项目基于 [chen08209](https://github.com/chen08209) 开发的 **[FlClash](https://github.com/chen08209/FlClash)**——一款基于 ClashMeta 的跨平台代理客户端。**所有核心功能的版权归原作者**。
 
-基于ClashMeta的多平台代理客户端，简单易用，开源无广告。
+- **基线版本**:FlClash `v0.8.92`
+- **核心 (`FlClashCore`)**:**未做任何修改**,直接复用上游的 macOS 预编译二进制
+- **范围**:仅 macOS。Android / Windows / Linux / iOS 源码已全部移除,属于个人使用版本
 
-on Desktop:
-<p style="text-align: center;">
-    <img alt="desktop" src="snapshots/desktop.gif">
-</p>
+---
 
-on Mobile:
-<p style="text-align: center;">
-    <img alt="mobile" src="snapshots/mobile.gif">
-</p>
+## 修改内容
 
-## Features
+所有改动都集中在 macOS 系统托盘菜单(`lib/common/tray.dart`、`lib/manager/tray_manager.dart`,以及内置 `plugins/tray_manager` 插件的 macOS 侧)。
 
-✈️ 多平台: Android, Windows, macOS and Linux
+### 新增
+- **延迟徽章** —— 节点项右侧显示彩色延迟徽章:
+  - 🟢 **绿色**:`< 200ms`
+  - 🟠 **橙色**:`200–499ms`
+  - 🔴 **红色**:`≥ 500ms` 或测速失败
+- **选中标记** —— 当前选中的节点旁边显示 `✓`。
+- **分组子菜单标签** —— 组的子菜单标题右侧显示该组当前选中的节点名(`组名        当前选中节点`)。
+- **测速进行中占位** —— 点"延迟测试"后,整个分组的节点徽章**立刻全部变成 `...`**,等真实结果回来再陆续刷成数字 / fail,看得出测试在跑。
 
-💻 自适应多个屏幕尺寸,多种颜色主题可供选择
+### 文案改动
+- `timeout` 改为更短的 **`fail`** —— 适合徽章这种小区域显示。
 
-💡 基本 Material You 设计, 类[Surfboard](https://github.com/getsurfboard/surfboard)用户界面
+### 修复
+- **带延迟标签的节点之前点不动**。自定义的右对齐 `NSView`(用来渲染 `name\tdelay` 这种带 tab 的标签)把鼠标事件吞掉了。现在 `mouseUp` 会正确派发,节点能正常选中。
+- **测速结束后菜单会自动关闭**。原来的刷新路径走 `cancelContextMenu` → 重建 → `popUpContextMenu`,但在 macOS 上重新弹出不可靠。现在保持打开。
+- **菜单开着时后台刷新会让已显示菜单的点击失效**。原来每次重建都会重新分配 `MenuItem` id,显示中的 `NSMenu` 的 tag 跟 Dart 端对不上,点击就被吃掉。现在两层都保留身份:
+  - Plugin 的 Dart 端,如果新菜单和旧菜单**形状一致**就**原地合并**字段进现有 `_menu`,**id 不变**。
+  - macOS 端**原地更新现有 `NSMenuItem` 的 view 内容**而不是重建整个菜单,所以已经展示中的菜单徽章也能实时刷新。
 
-☁️ 支持通过WebDAV同步数据
+### 行为
+- 托盘菜单**只在用户主动触发的测速完成后**才刷新(托盘点击 or dashboard 触发)。核心后台健康检查产生的延迟事件**故意不监听**,避免刚测出来的好结果几秒后被瞬时失败覆盖。
 
-✨ 支持一键导入订阅, 深色模式
+---
 
-## Use
+## 编译
 
-### Linux
+需要 Flutter(对应 `pubspec.yaml` 的 `environment.sdk` 版本)和 Xcode。
 
-⚠️ 使用前请确保安装以下依赖
+```bash
+flutter build macos --release
+```
 
-   ```bash
-    sudo apt-get install libayatana-appindicator3-dev
-    sudo apt-get install libkeybinder-3.0-dev
-   ```
+产物路径:`build/macos/Build/Products/Release/FClash Plus.app`
 
-### Android
+预编译 DMG 在每个 [GitHub Release](https://github.com/zhangbaoshengrio/fclash-plus/releases) 里都有附件。
 
-支持下列操作
+macOS 核心二进制 `libclash/macos/FlClashCore` 已经包含在仓库中,编译 macOS 端不需要 Go 工具链。
 
-   ```bash
-    com.follow.clash.action.START
-    
-    com.follow.clash.action.STOP
-    
-    com.follow.clash.action.TOGGLE
-   ```
+---
 
-## Download
+## TUN 模式说明
 
-<a href="https://chen08209.github.io/FlClash-fdroid-repo/repo?fingerprint=789D6D32668712EF7672F9E58DEEB15FBD6DCEEC5AE7A4371EA72F2AAE8A12FD"><img alt="Get it on F-Droid" src="snapshots/get-it-on-fdroid.svg" width="200px"/></a> <a href="https://github.com/chen08209/FlClash/releases"><img alt="Get it on GitHub" src="snapshots/get-it-on-github.svg" width="200px"/></a>
+第一次开 TUN 模式时,macOS 会弹一次管理员密码框 —— 给 `FlClashCore` 加 `setuid`,让核心能配置 `utun` 接口。跟上游 FlClash 一样。
 
-## Build
+bundle id 故意改成了 `com.zhangbaosheng.fclash-plus`,这样 FClash Plus 和原版 FlClash 可以**并存安装**,不会在 `LaunchServices` 路由、偏好设置、`utun` 设备这些地方互相冲突。
 
-1. 更新 submodules
-   ```bash
-   git submodule update --init --recursive
-   ```
+---
 
-2. 安装 `Flutter` 以及 `Golang` 环境
+## 协议
 
-3. 构建应用
+继承自上游 FlClash —— 原始协议条款见 [chen08209/FlClash](https://github.com/chen08209/FlClash)。
 
-    - android
+---
 
-        1. 安装  `Android SDK` ,  `Android NDK`
+## 致谢
 
-        2. 设置 `ANDROID_NDK` 环境变量
-
-        3. 运行构建脚本
-
-           ```bash
-           dart .\setup.dart android
-           ```
-
-    - windows
-
-        1. 你需要一个windows客户端
-
-        2. 安装 `Gcc`，`Inno Setup`
-
-        3. 运行构建脚本
-
-           ```bash
-           dart .\setup.dart windows --arch <arm64 | amd64>
-           ```
-
-    - linux
-
-        1. 你需要一个linux客户端
-
-        2. 运行构建脚本
-
-           ```bash
-           dart .\setup.dart linux --arch <arm64 | amd64>
-           ```
-
-    - macOS
-
-        1. 你需要一个macOS客户端
-
-        2. 运行构建脚本
-
-           ```bash
-           dart .\setup.dart macos --arch <arm64 | amd64>
-           ```
-
-## Star History
-
-支持开发者的最简单方式是点击页面顶部的星标（⭐）。
-
-<p style="text-align: center;">
-    <a href="https://api.star-history.com/svg?repos=chen08209/FlClash&Date">
-        <img alt="start" width=50% src="https://api.star-history.com/svg?repos=chen08209/FlClash&Date"/>
-    </a>
-</p>
+强烈感谢 [chen08209](https://github.com/chen08209) 这个优秀的原项目。本仓库只是在上面做了一些个人小修改而已。

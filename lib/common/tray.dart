@@ -8,7 +8,9 @@ import 'package:intl/intl.dart';
 import 'package:tray_manager/tray_manager.dart';
 
 import 'app_localizations.dart';
+import 'compute.dart';
 import 'constant.dart';
+import 'string.dart';
 import 'system.dart';
 import 'window.dart';
 
@@ -109,12 +111,42 @@ class Tray {
     }
     menuItems.add(MenuItem.separator());
     if (system.isMacOS) {
+      if (trayState.groups.isNotEmpty) {
+        menuItems.add(
+          MenuItem(
+            type: 'keepOpen',
+            label: appLocalizations.delayTest,
+            onClick: (_) {
+              _delayTestAllGroups(trayState.groups);
+            },
+          ),
+        );
+        menuItems.add(MenuItem.separator());
+      }
       for (final group in trayState.groups) {
         List<MenuItem> subMenuItems = [];
+        subMenuItems.add(
+          MenuItem(
+            type: 'keepOpen',
+            label: appLocalizations.delayTest,
+            onClick: (_) {
+              _delayTestGroup(group);
+            },
+          ),
+        );
+        subMenuItems.add(MenuItem.separator());
         for (final proxy in group.all) {
+          final delay = appController.getDelayValue(
+            proxyName: proxy.name,
+            testUrl: group.testUrl,
+          );
+          final delayLabel = _formatDelay(delay);
+          final proxyLabel = delayLabel != null
+              ? '${proxy.name}\t$delayLabel'
+              : proxy.name;
           subMenuItems.add(
             MenuItem.checkbox(
-              label: proxy.name,
+              label: proxyLabel,
               checked:
                   appController.getSelectedProxyName(group.name) == proxy.name,
               onClick: (_) {
@@ -209,6 +241,46 @@ class Tray {
       await trayManager.setTitle('');
     } else {
       await trayManager.setTitle(traffic.trayTitle);
+    }
+  }
+
+  String? _formatDelay(int? delay) {
+    if (delay == null) return null;
+    if (delay == 0) return '...';
+    if (delay < 0) return 'fail';
+    return '${delay}ms';
+  }
+
+  void _markGroupTesting(Group group) {
+    final selectedMap = appController.currentProfile?.selectedMap ?? {};
+    final allGroups = appController.groups;
+    final defaultTestUrl = appController.getRealTestUrl(group.testUrl);
+    for (final proxy in group.all) {
+      final state = computeRealSelectedProxyState(
+        proxy.name,
+        groups: allGroups,
+        selectedMap: selectedMap,
+      );
+      final name = state.proxyName;
+      if (name.isEmpty) continue;
+      final url = state.testUrl.takeFirstValid([defaultTestUrl]);
+      appController.setDelay(Delay(url: url, name: name, value: 0));
+    }
+  }
+
+  Future<void> _delayTestGroup(Group group) async {
+    _markGroupTesting(group);
+    await appController.updateTray();
+    await appController.delayTestProxies(group.all, group.testUrl);
+  }
+
+  Future<void> _delayTestAllGroups(List<Group> groups) async {
+    for (final group in groups) {
+      _markGroupTesting(group);
+    }
+    await appController.updateTray();
+    for (final group in groups) {
+      await appController.delayTestProxies(group.all, group.testUrl);
     }
   }
 

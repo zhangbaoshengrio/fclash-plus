@@ -1,127 +1,79 @@
-<div>
+# FClash Plus
 
-[**简体中文**](README_zh_CN.md)
+> [中文说明 / Chinese README](./README_zh_CN.md)
 
-</div>
+A macOS-only modification of [FlClash](https://github.com/chen08209/FlClash) with quality-of-life improvements to the system tray menu.
 
-## FlClash
+---
 
-[![Downloads](https://img.shields.io/github/downloads/chen08209/FlClash/total?style=flat-square&logo=github)](https://github.com/chen08209/FlClash/releases/)[![Last Version](https://img.shields.io/github/release/chen08209/FlClash/all.svg?style=flat-square)](https://github.com/chen08209/FlClash/releases/)[![License](https://img.shields.io/github/license/chen08209/FlClash?style=flat-square)](LICENSE)
+## Credits & Base
 
-[![Channel](https://img.shields.io/badge/Telegram-Channel-blue?style=flat-square&logo=telegram)](https://t.me/FlClash)
+This project is built on top of **[FlClash](https://github.com/chen08209/FlClash)** by [chen08209](https://github.com/chen08209) — a multi-platform proxy client based on ClashMeta. All credit for the core functionality goes to the original author.
 
-A multi-platform proxy client based on ClashMeta, simple and easy to use, open-source and ad-free.
+- **Base version**: FlClash `v0.8.92`
+- **Core (`FlClashCore`)**: unmodified — the prebuilt macOS binary from upstream is reused as-is
+- **Scope**: macOS only. Android / Windows / Linux / iOS sources have been removed. Personal-use fork.
 
-on Desktop:
-<p style="text-align: center;">
-    <img alt="desktop" src="snapshots/desktop.gif">
-</p>
+---
 
-on Mobile:
-<p style="text-align: center;">
-    <img alt="mobile" src="snapshots/mobile.gif">
-</p>
+## What's Changed
 
-## Features
+All changes are confined to the macOS system tray menu (`lib/common/tray.dart`, `lib/manager/tray_manager.dart`, and the embedded `plugins/tray_manager` plugin's macOS side).
 
-✈️ Multi-platform: Android, Windows, macOS and Linux
+### New
+- **Delay badges** — proxy items now show a colored badge for the last measured delay:
+  - 🟢 **Green** for `< 200ms`
+  - 🟠 **Orange** for `200–499ms`
+  - 🔴 **Red** for `≥ 500ms` or failed tests
+- **Selected checkmark** — the currently selected proxy in each group shows a `✓` next to its name.
+- **Group submenu label** — group submenus show the currently selected proxy on the right side of the group name (`GroupName       SelectedProxy`).
+- **In-progress indicator** — clicking "Delay Test" on a group immediately replaces every proxy's badge with `...` until results come back, so you can tell the test has started.
 
-💻 Adaptive multiple screen sizes, Multiple color themes available
+### Renamed
+- `timeout` is now displayed as **`fail`** — shorter, fits a small badge better.
 
-💡 Based on Material You Design, [Surfboard](https://github.com/getsurfboard/surfboard)-like UI
+### Fixed
+- **Proxy items with delay labels were unclickable.** The custom right-aligned `NSView` used to render `name\tdelay` swallowed mouse events. Now `mouseUp` is forwarded and selection works.
+- **Tray menu closed itself after a delay test completed.** The old refresh path did `cancelContextMenu` → rebuild → `popUpContextMenu`, but the re-pop was unreliable on macOS. Now the menu stays open.
+- **Clicks on already-displayed menu items broke after a background refresh.** Rebuilding the menu used to allocate fresh `MenuItem` ids, so the displayed `NSMenu`'s tags no longer matched. Now both layers preserve identity:
+  - The plugin's Dart side **merges new menu data into the existing `_menu`** when the shape matches, keeping ids stable.
+  - The macOS side **mutates existing `NSMenuItem` views in place** instead of recreating the menu, so badges visibly update on the open menu.
 
-☁️ Supports data sync via WebDAV
+### Behavior
+- The tray menu refreshes after every **user-initiated** delay test (from the tray or the dashboard). Background health-check emissions from the core are intentionally **not** listened to, so a good user-test result isn't overwritten seconds later by a transient core failure.
 
-✨ Support subscription link, Dark mode
-
-## Use
-
-### Linux
-
-⚠️ Make sure to install the following dependencies before using them
-
-   ```bash
-    sudo apt-get install libayatana-appindicator3-dev
-    sudo apt-get install libkeybinder-3.0-dev
-   ```
-
-### Android
-
-Support the following actions
-
-   ```bash
-    com.follow.clash.action.START
-    
-    com.follow.clash.action.STOP
-    
-    com.follow.clash.action.TOGGLE
-   ```
-
-## Download
-
-<a href="https://chen08209.github.io/FlClash-fdroid-repo/repo?fingerprint=789D6D32668712EF7672F9E58DEEB15FBD6DCEEC5AE7A4371EA72F2AAE8A12FD"><img alt="Get it on F-Droid" src="snapshots/get-it-on-fdroid.svg" width="200px"/></a> <a href="https://github.com/chen08209/FlClash/releases"><img alt="Get it on GitHub" src="snapshots/get-it-on-github.svg" width="200px"/></a>
+---
 
 ## Build
 
-1. Update submodules
-   ```bash
-   git submodule update --init --recursive
-   ```
+Requires Flutter (matching the `environment.sdk` in `pubspec.yaml`) and Xcode.
 
-2. Install `Flutter` and `Golang` environment
+```bash
+flutter build macos --release
+```
 
-3. Build Application
+Output: `build/macos/Build/Products/Release/FClash Plus.app`
 
-    - android
+A prebuilt DMG is attached to each [GitHub Release](https://github.com/zhangbaoshengrio/fclash-plus/releases).
 
-        1. Install  `Android SDK` ,  `Android NDK`
+The macOS core binary `libclash/macos/FlClashCore` ships in the repo — no Go toolchain needed for building the macOS app.
 
-        2. Set `ANDROID_NDK` environment variables
+---
 
-        3. Run Build script
+## TUN Mode Note
 
-           ```bash
-           dart .\setup.dart android
-           ```
+The first time you toggle TUN mode on, macOS will prompt for an admin password — it sets `setuid` on `FlClashCore` so the core can configure the `utun` interface. Same as upstream FlClash.
 
-    - windows
+The bundle id was deliberately changed (`com.zhangbaosheng.fclash-plus`) so FClash Plus and the original FlClash can be installed side-by-side without conflicting over `LaunchServices` routing, preferences, or the `utun` device.
 
-        1. You need a windows client
+---
 
-        2. Install  `Gcc`，`Inno Setup`
+## License
 
-        3. Run build script
+Inherits from upstream FlClash — see [chen08209/FlClash](https://github.com/chen08209/FlClash) for the original license terms.
 
-           ```bash
-           dart .\setup.dart windows --arch <arm64 | amd64>
-           ```
+---
 
-    - linux
+## Acknowledgements
 
-        1. You need a linux client
-
-        2. Run build script
-
-           ```bash
-           dart .\setup.dart linux --arch <arm64 | amd64>
-           ```
-
-    - macOS
-
-        1. You need a macOS client
-
-        2. Run build script
-
-           ```bash
-           dart .\setup.dart macos --arch <arm64 | amd64>
-           ```
-
-## Star
-
-The easiest way to support developers is to click on the star (⭐) at the top of the page.
-
-<p style="text-align: center;">
-    <a href="https://api.star-history.com/svg?repos=chen08209/FlClash&Date">
-        <img alt="start" width=50% src="https://api.star-history.com/svg?repos=chen08209/FlClash&Date"/>
-    </a>
-</p>
+Massive thanks to [chen08209](https://github.com/chen08209) for the excellent original work. This repo is just a small set of personal tweaks on top.

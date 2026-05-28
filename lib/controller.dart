@@ -492,6 +492,39 @@ extension ProxiesControllerExt on AppController {
     _ref.read(delayDataSourceProvider.notifier).setDelay(delay);
   }
 
+  int? getDelayValue({required String proxyName, String? testUrl}) {
+    return _ref.read(getDelayProvider(proxyName: proxyName, testUrl: testUrl));
+  }
+
+  Future<void> delayTestProxies(List<Proxy> proxies, [String? testUrl]) async {
+    final proxyNames = proxies.map((proxy) => proxy.name).toSet().toList();
+
+    final delayProxies = proxyNames.map<Future>((proxyName) async {
+      final currentGroups = groups;
+      final selectedMap = _ref.read(
+        currentProfileProvider.select((state) => state?.selectedMap ?? {}),
+      );
+      final state = computeRealSelectedProxyState(
+        proxyName,
+        groups: currentGroups,
+        selectedMap: selectedMap,
+      );
+      final url = state.testUrl.takeFirstValid([
+        getRealTestUrl(testUrl),
+      ]);
+      final name = state.proxyName;
+      if (name.isEmpty) return;
+      setDelay(Delay(url: url, name: name, value: 0));
+      setDelay(await coreController.getDelay(url, name));
+    }).toList();
+
+    final batchesDelayProxies = delayProxies.batch(100);
+    for (final batchDelayProxies in batchesDelayProxies) {
+      await Future.wait(batchDelayProxies);
+    }
+    addSortNum();
+  }
+
   Future<void> changeProxy({
     required String groupName,
     required String proxyName,

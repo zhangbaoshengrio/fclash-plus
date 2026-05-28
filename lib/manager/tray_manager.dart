@@ -1,5 +1,6 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/controller.dart';
+import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +32,15 @@ class _TrayContainerState extends ConsumerState<TrayManager> with TrayListener {
             showTrayTitle: next.showTrayTitle,
             traffic: next.traffic,
           );
+        }
+      });
+      // Refresh tray menu when a user-initiated delay test completes.
+      // sortNumProvider only ticks after delayTestProxies finishes a batch,
+      // so background health-check emissions from the core can't keep
+      // overwriting fresh user-test results with stale fail readings.
+      ref.listenManual(sortNumProvider, (prev, next) {
+        if (prev != next) {
+          appController.updateTray();
         }
       });
     }
